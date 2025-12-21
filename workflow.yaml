@@ -3,8 +3,9 @@
 version: "1"
 
 nodes:
-  - id: apply-transforms
-    name: Migrate Cypress Tests to Playwright
+  # Step 1: Transform Cypress test files to Playwright
+  - id: transform-test-files
+    name: "Step 1: Transform Cypress Test Files"
     type: automatic
     steps:
       - name: "Transform Cypress test files to Playwright"
@@ -32,3 +33,52 @@ nodes:
             - "**/node_modules/**"
             - "**/dist/**"
             - "**/build/**"
+            - "**/playwright/**"
+
+  # Step 2: Migrate Cypress config to Playwright config
+  - id: migrate-config
+    name: "Step 2: Migrate Cypress Config"
+    type: automatic
+    steps:
+      - name: "Transform cypress.config to playwright.config"
+        js-ast-grep:
+          js_file: scripts/config-migration.ts
+          language: "typescript"
+          include:
+            - "**/cypress.config.ts"
+            - "**/cypress.config.js"
+          exclude:
+            - "**/node_modules/**"
+
+  # Step 3: Detect and report custom commands
+  - id: detect-custom-commands
+    name: "Step 3: Detect Custom Commands"
+    type: automatic
+    steps:
+      - name: "Scan for custom Cypress commands"
+        js-ast-grep:
+          js_file: scripts/detect-custom-commands.ts
+          language: "typescript"
+          include:
+            - "**/cypress/support/**/*.ts"
+            - "**/cypress/support/**/*.js"
+            - "**/support/commands.ts"
+            - "**/support/commands.js"
+          exclude:
+            - "**/node_modules/**"
+
+  # Step 4: Rename test files from .cy.ts to .spec.ts
+  - id: rename-test-files
+    name: "Step 4: Rename Test Files"
+    type: automatic
+    steps:
+      - name: "Rename .cy.ts files to .spec.ts (Playwright convention)"
+        shell:
+          command: |
+            echo "To complete migration, rename your test files:"
+            echo "  - *.cy.ts -> *.spec.ts"
+            echo "  - Move from cypress/ to tests/ or e2e/ directory"
+            echo ""
+            echo "Run these commands:"
+            echo "  find . -name '*.cy.ts' -exec bash -c 'mv \"$0\" \"${0%.cy.ts}.spec.ts\"' {} \\;"
+            echo "  find . -name '*.cy.tsx' -exec bash -c 'mv \"$0\" \"${0%.cy.tsx}.spec.tsx\"' {} \\;"
