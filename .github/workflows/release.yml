@@ -1,7 +1,8 @@
 name: Publish Codemod
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*"
 
 permissions:
   id-token: write
