@@ -73,12 +73,11 @@ nodes:
     type: automatic
     steps:
       - name: "Rename .cy.ts files to .spec.ts (Playwright convention)"
-        shell:
-          command: |
-            echo "To complete migration, rename your test files:"
-            echo "  - *.cy.ts -> *.spec.ts"
-            echo "  - Move from cypress/ to tests/ or e2e/ directory"
-            echo ""
-            echo "Run these commands:"
-            echo "  find . -name '*.cy.ts' -exec bash -c 'mv \"$0\" \"${0%.cy.ts}.spec.ts\"' {} \\;"
-            echo "  find . -name '*.cy.tsx' -exec bash -c 'mv \"$0\" \"${0%.cy.tsx}.spec.tsx\"' {} \\;"
+        run: |
+          echo "To complete migration, rename your test files:"
+          echo "  - *.cy.ts -> *.spec.ts"
+          echo "  - Move from cypress/ to tests/ or e2e/ directory"
+          echo ""
+          echo "Run these commands:"
+          echo "  find . -name '*.cy.ts' -exec bash -c 'mv \"$0\" \"${0%.cy.ts}.spec.ts\"' {} \\;"
+          echo "  find . -name '*.cy.tsx' -exec bash -c 'mv \"$0\" \"${0%.cy.tsx}.spec.tsx\"' {} \\;"
