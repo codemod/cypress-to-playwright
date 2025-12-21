@@ -1,4 +1,4 @@
-name: Bump Version
+name: Bump Version and Publish
 
 on:
   workflow_dispatch:
@@ -15,9 +15,10 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
-  bump-version:
+  bump-and-publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +57,7 @@ jobs:
         run: |
           sed -i 's/^version: *".*"/version: "${{ steps.new.outputs.version }}"/' codemod.yaml
 
+      # This does not trigger the release.yml workflow because GitHub Actions does not support triggering workflows from within a workflow.
       - name: Commit and tag
         run: |
           git config user.name "github-actions[bot]"
@@ -64,3 +66,6 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.new.outputs.version }}"
           git tag "v${{ steps.new.outputs.version }}"
           git push origin main --tags
+
+      - name: Publish codemod
+        uses: codemod/publish-action@main
