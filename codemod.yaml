@@ -7,6 +7,7 @@ author: "Codemod Team"
 license: "MIT"
 workflow: "workflow.yaml"
 category: "migration"
+repository: "https://github.com/codemod/cypress-to-playwright"
 
 targets:
   languages: ["typescript", "javascript", "tsx", "jsx"]
