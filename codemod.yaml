@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+name: "@codemod/cypress-to-playwright"
+version: "0.1.0"
+description: "Migrate Cypress end-to-end tests to Playwright. Transforms test structure, selectors, actions, assertions, and navigation commands."
+author: "Codemod Team"
+license: "MIT"
+workflow: "workflow.yaml"
+category: "migration"
+
+targets:
+  languages: ["typescript", "javascript", "tsx", "jsx"]
+
+keywords:
+  - cypress
+  - playwright
+  - migration
+  - testing
+  - e2e
+  - end-to-end
+  - transformation
+
+registry:
+  access: "public"
+  visibility: "public"
+
+capabilities: []

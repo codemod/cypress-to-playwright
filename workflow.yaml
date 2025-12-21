@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+
+version: "1"
+
+nodes:
+  - id: apply-transforms
+    name: Migrate Cypress Tests to Playwright
+    type: automatic
+    steps:
+      - name: "Transform Cypress test files to Playwright"
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          language: "typescript"
+          include:
+            - "**/*.cy.ts"
+            - "**/*.cy.tsx"
+            - "**/*.cy.js"
+            - "**/*.cy.jsx"
+            - "**/cypress/**/*.ts"
+            - "**/cypress/**/*.tsx"
+            - "**/cypress/**/*.js"
+            - "**/cypress/**/*.jsx"
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.spec.js"
+            - "**/*.spec.jsx"
+            - "**/*.test.ts"
+            - "**/*.test.tsx"
+            - "**/*.test.js"
+            - "**/*.test.jsx"
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/build/**"

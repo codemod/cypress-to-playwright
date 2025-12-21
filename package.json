@@ -1,0 +1,14 @@
+{
+  "name": "cypress-to-playwright",
+  "version": "0.1.0",
+  "description": "Migrate Cypress tests to Playwright",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm dlx codemod@latest jssg test -l typescript ./scripts/codemod.ts",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@codemod.com/jssg-types": "^1.3.0",
+    "typescript": "^5.8.3"
+  }
+}
