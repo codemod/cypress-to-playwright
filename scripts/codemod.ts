@@ -408,27 +408,48 @@ function transformCyGetChain(chain: Array<{ method: string; args: Node | null; c
     } else if (method === "children") {
       currentLocator = `${currentLocator}.locator('> *')`;
     } else if (method === "should") {
-      const { assertion, isNegated, restArgs } = parseAssertionArgs(args);
-      const mapping = ASSERTION_MAP[assertion];
+      // Check if .should() receives a callback function instead of a string assertion
+      const argsChildren = args?.children().filter((c) => c.isNamed()) ?? [];
+      const firstArg = argsChildren[0];
+      const isCallbackFunction = firstArg?.is("arrow_function") || firstArg?.is("function_expression");
 
-      if (mapping) {
-        let playwrightArgs = restArgs.join(", ");
-
-        if (mapping.argsTransform === "regex" && restArgs.length > 0) {
-          const classValue = restArgs[0];
-          if (classValue) {
-            const classContent = classValue.replace(/^['"]|['"]$/g, "");
-            playwrightArgs = `/${classContent}/`;
-          }
-        }
-
-        const negation = isNegated ? ".not" : "";
-        const argsStr = playwrightArgs ? `(${playwrightArgs})` : "()";
-        assertionExpr = `await expect(${currentLocator})${negation}.${mapping.method}${argsStr}`;
+      if (isCallbackFunction) {
+        // Complex .should() with callback - needs manual conversion
+        const callbackPreview = firstArg?.text().slice(0, 100) ?? "";
+        assertionExpr = `// TODO: Migrate ${currentLocator}.should((callback) => {...}) - Complex assertion callback needs manual conversion.\n` +
+                       `//       Steps for AI/manual migration:\n` +
+                       `//       1. Extract the assertion logic from the callback\n` +
+                       `//       2. Convert Cypress assertions (expect($el.text()).to.eq(...)) to Playwright assertions\n` +
+                       `//       3. Use locator.evaluate() if you need to access element properties\n` +
+                       `//       4. Use expect(locator).toHaveText(...) or similar Playwright assertions\n` +
+                       `//       Example: cy.get('.introjs-tooltiptext').should(($el) => { expect($el.text().trim()).to.eq('step two'); })\n` +
+                       `//                becomes: await expect(page.locator('.introjs-tooltiptext')).toHaveText('step two', { exact: false })\n` +
+                       `//       Callback preview: ${callbackPreview}${callbackPreview.length >= 100 ? '...' : ''}`;
         isAssertion = true;
       } else {
-        assertionExpr = `await expect(${currentLocator})./* TODO: migrate '${assertion}' */ toPass()`;
-        isAssertion = true;
+        // String-based assertion
+        const { assertion, isNegated, restArgs } = parseAssertionArgs(args);
+        const mapping = ASSERTION_MAP[assertion];
+
+        if (mapping) {
+          let playwrightArgs = restArgs.join(", ");
+
+          if (mapping.argsTransform === "regex" && restArgs.length > 0) {
+            const classValue = restArgs[0];
+            if (classValue) {
+              const classContent = classValue.replace(/^['"]|['"]$/g, "");
+              playwrightArgs = `/${classContent}/`;
+            }
+          }
+
+          const negation = isNegated ? ".not" : "";
+          const argsStr = playwrightArgs ? `(${playwrightArgs})` : "()";
+          assertionExpr = `await expect(${currentLocator})${negation}.${mapping.method}${argsStr}`;
+          isAssertion = true;
+        } else {
+          assertionExpr = `await expect(${currentLocator})./* TODO: migrate '${assertion}' */ toPass()`;
+          isAssertion = true;
+        }
       }
     } else if (ACTION_MAP[method]) {
       const playwrightMethod = ACTION_MAP[method];
@@ -510,7 +531,54 @@ function transformCyGetChain(chain: Array<{ method: string; args: Node | null; c
       const aliasName = argsChildren[0]?.text() ?? "";
       result = `// TODO: Migrate ${currentLocator}.as(${aliasName}) - Playwright uses const variables instead of aliases`;
     } else if (method === "then") {
-      result = `// TODO: Migrate ${currentLocator}.then() - use locator.evaluate() or similar in Playwright`;
+      // Check if .then() receives a callback with window parameter (cy.visit().then((window) => {...}))
+      const argsChildren = args?.children().filter((c) => c.isNamed()) ?? [];
+      const firstArg = argsChildren[0];
+      const isCallbackFunction = firstArg?.is("arrow_function") || firstArg?.is("function_expression");
+      
+      if (isCallbackFunction) {
+        // Check if callback parameter is 'window' (common pattern: cy.visit().then((window) => {...}))
+        const params = firstArg?.field("parameters");
+        const paramText = params?.text() ?? "";
+        const hasWindowParam = paramText.includes("window");
+        
+        if (hasWindowParam && i > 0 && chain[i - 1]?.method === "visit") {
+          // cy.visit().then((window) => {...}) pattern
+          const callbackPreview = firstArg?.text().slice(0, 150) ?? "";
+          result = `// TODO: Migrate cy.visit().then((window) => {...}) - Window object access needs manual conversion.\n` +
+                   `//       Steps for AI/manual migration:\n` +
+                   `//       1. Use page.evaluate() to access window object in Playwright\n` +
+                   `//       2. If you need to call methods on window (e.g., window.introJs.hint()):\n` +
+                   `//          await page.goto(...);\n` +
+                   `//          const instance = await page.evaluate(() => window.introJs.hint());\n` +
+                   `//          await page.evaluate(() => instance.showHints());\n` +
+                   `//       3. For object references, use evaluateHandle() if you need to pass objects between calls\n` +
+                   `//       4. Note: Playwright's page.evaluate() runs in the browser context, similar to Cypress's window\n` +
+                   `//       Callback preview: ${callbackPreview}${callbackPreview.length >= 150 ? '...' : ''}`;
+        } else if (currentLocator) {
+          // Generic .then() on a locator
+          const callbackPreview = firstArg?.text().slice(0, 100) ?? "";
+          result = `// TODO: Migrate ${currentLocator}.then((callback) => {...}) - Element callback needs manual conversion.\n` +
+                   `//       Steps for AI/manual migration:\n` +
+                   `//       1. Use locator.evaluate() to access element properties in Playwright\n` +
+                   `//       2. Extract the logic from the callback and convert to Playwright patterns\n` +
+                   `//       3. Example: cy.get('.el').then(($el) => { const text = $el.text(); })\n` +
+                   `//                becomes: const text = await page.locator('.el').textContent();\n` +
+                   `//       Callback preview: ${callbackPreview}${callbackPreview.length >= 100 ? '...' : ''}`;
+        } else {
+          // .then() without locator context
+          const callbackPreview = firstArg?.text().slice(0, 100) ?? "";
+          result = `// TODO: Migrate .then((callback) => {...}) - Promise callback needs manual conversion.\n` +
+                   `//       Steps for AI/manual migration:\n` +
+                   `//       1. Playwright requires explicit await for all async operations\n` +
+                   `//       2. Convert the callback logic to use await and Playwright's async patterns\n` +
+                   `//       3. Use page.evaluate() if you need to access browser context\n` +
+                   `//       Callback preview: ${callbackPreview}${callbackPreview.length >= 100 ? '...' : ''}`;
+        }
+      } else {
+        // .then() without callback (shouldn't happen, but handle it)
+        result = `// TODO: Migrate ${currentLocator}.then() - use locator.evaluate() or similar in Playwright`;
+      }
     } else if (method === "log") {
       const argsChildren = args?.children().filter((c) => c.isNamed()) ?? [];
       const logArgs = argsChildren.map((c) => c.text()).join(", ");
@@ -686,6 +754,38 @@ function transformCyGetChain(chain: Array<{ method: string; args: Node | null; c
       result = `await ${currentLocator}.evaluate((form) => form.submit())`;
     } else if (method === "scrollIntoView") {
       result = `await ${currentLocator}.scrollIntoViewIfNeeded()`;
+    } else {
+      // Unknown method - likely a custom Cypress command
+      // This needs manual migration or AI assistance
+      const argsChildren = args?.children().filter((c) => c.isNamed()) ?? [];
+      const argsText = argsChildren.length > 0 ? argsChildren.map((c) => c.text()).join(", ") : "";
+      const argsStr = argsText ? `(${argsText})` : "()";
+      
+      if (i === 0) {
+        // First method in chain - standalone cy command (e.g., cy.nextStep())
+        result = `// TODO: Migrate cy.${method}${argsStr} - This is a custom Cypress command that needs manual conversion.\n` +
+                 `//       Steps for AI/manual migration:\n` +
+                 `//       1. Check if this command was defined in cypress/support/commands.ts\n` +
+                 `//       2. Convert the command implementation to a Playwright helper function or fixture\n` +
+                 `//       3. Replace this call with the Playwright equivalent\n` +
+                 `//       4. If it's a chained command, use locator methods or page.evaluate()\n` +
+                 `//       Example: cy.nextStep() might become await page.evaluate(() => window.introJs.nextStep())`;
+      } else {
+        // Chained method (e.g., cy.get(...).nextStep())
+        if (currentLocator) {
+          result = `// TODO: Migrate ${currentLocator}.${method}${argsStr} - This is a custom Cypress command that needs manual conversion.\n` +
+                   `//       Steps for AI/manual migration:\n` +
+                   `//       1. Check if this command was defined in cypress/support/commands.ts\n` +
+                   `//       2. Convert the command implementation to a Playwright helper function\n` +
+                   `//       3. Replace this call with the Playwright equivalent\n` +
+                   `//       4. If it operates on an element, use locator methods or locator.evaluate()\n` +
+                   `//       Example: locator.nextStep() might become await locator.evaluate((el) => el.nextStep())`;
+        } else {
+          // No locator context - this shouldn't happen but handle it
+          result = `// TODO: Migrate cy.${method}${argsStr} - This is a custom Cypress command that needs manual conversion.\n` +
+                   `//       Check cypress/support/commands.ts for the command definition and convert to Playwright equivalent`;
+        }
+      }
     }
   }
 
