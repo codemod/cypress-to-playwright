@@ -2,6 +2,14 @@
 
 version: "1"
 
+params:
+  schema:
+    autoAIReview:
+      name: "AI-based code transformation"
+      description: "Have AI autoamte tricky cases not handled by the ast-based codemod"
+      type: boolean
+      default: true
+
 nodes:
   # Step 1: Transform Cypress test files to Playwright
   - id: transform-test-files
@@ -82,7 +90,95 @@ nodes:
           echo "  find . -name '*.cy.ts' -exec bash -c 'mv \"$0\" \"${0%.cy.ts}.spec.ts\"' {} \\;"
           echo "  find . -name '*.cy.tsx' -exec bash -c 'mv \"$0\" \"${0%.cy.tsx}.spec.tsx\"' {} \\;"
 
-  # Step 5: Create pull request
+  # Step 5: AI-assisted migration of TODO comments
+  - id: ai-todo-migration
+    name: "Step 6: AI-Assisted TODO Migration"
+    type: automatic
+    steps:
+      - name: "Migrate remaining Cypress code from TODO comments"
+        if: params.autoAIReview
+        ai:
+          max_steps: 500
+          prompt: |
+            Review all TODO comments in the codebase that were left by previous AST-based migration steps.
+            These TODO comments indicate tricky Cypress patterns that require context-aware conversion to Playwright.
+            
+            Focus on these specific patterns that cannot be handled by AST transformations:
+            
+            1. .then()` PATTERNS (including cy.visit().then())
+               Look for TODO comments like:
+               - "TODO: Migrate cy.visit().then((window) => {...})"
+               - "TODO: Migrate ${locator}.then((callback) => {...})"
+               - "TODO: Migrate .then((callback) => {...})"
+               
+               Conversion strategies:
+               - cy.visit().then((window) => {...}): Use page.evaluate() to access window object
+                 Example: cy.visit('/page').then((window) => { window.introJs.start(); })
+                 Becomes: await page.goto('/page'); await page.evaluate(() => window.introJs.start());
+               - locator.then((el) => {...}): Extract logic and use locator methods or locator.evaluate()
+                 Example: cy.get('.el').then(($el) => { const text = $el.text(); })
+                 Becomes: const text = await page.locator('.el').textContent();
+               - Generic .then() callbacks: Convert to async/await patterns with proper Playwright APIs
+            
+            2. CUSTOM CYPRESS COMMANDS
+               Look for TODO comments like:
+               - "TODO: Migrate cy.${method}() - This is a custom Cypress command"
+               - "TODO: Migrate ${locator}.${method}() - This is a custom Cypress command"
+               
+               Common custom commands to handle:
+               - cy.nextStep(), cy.prevStep() → page.evaluate(() => window.introJs.nextStep())
+               - cy.compareSnapshot() → Use Playwright's visual comparison or screenshot comparison
+               - Any other custom commands found in cypress/support/commands.ts
+               
+               Conversion steps:
+               1. Check cypress/support/commands.ts for the command definition
+               2. Understand what the command does
+               3. Convert to Playwright helper function or use page.evaluate() if it accesses browser APIs
+               4. For element-specific commands, use locator.evaluate() or locator methods
+            
+            3. COMPLEX .should() CALLBACKS
+               Look for TODO comments like:
+               - "TODO: Migrate ${locator}.should((callback) => {...}) - Complex assertion callback"
+               - "await expect(${locator})./* TODO: migrate '${assertion}' */ toPass()"
+               
+               Conversion strategies:
+               - Extract assertion logic from the callback function
+               - Convert Cypress assertions (expect($el.text()).to.eq(...)) to Playwright assertions
+               - Use locator.evaluate() if you need to access element properties
+               - Use expect(locator).toHaveText(...) or similar Playwright matchers
+               Example: cy.get('.introjs-tooltiptext').should(($el) => { expect($el.text().trim()).to.eq('step two'); })
+               Becomes: await expect(page.locator('.introjs-tooltiptext')).toHaveText('step two', { exact: false })
+            
+            For each TODO comment:
+            1. Read the TODO comment and its context (including any callback preview)
+            2. Understand the original Cypress behavior
+            3. Convert to equivalent Playwright code
+            4. Remove the TODO comment completely
+            5. Ensure the converted code maintains the same test logic and assertions
+            
+            Ensure all transformations:
+            - Use proper Playwright APIs (page, locator, expect)
+            - Maintain test logic and assertions
+            - Follow Playwright best practices (async/await, proper waiting)
+            - Remove all TODO comments after successful conversion
+            - Test that the converted code works correctly
+          include:
+            - "**/*.spec.ts"
+            - "**/*.spec.tsx"
+            - "**/*.spec.js"
+            - "**/*.spec.jsx"
+            - "**/playwright/**/*.ts"
+            - "**/playwright/**/*.tsx"
+            - "**/playwright/**/*.js"
+            - "**/playwright/**/*.jsx"
+            - "**/playwright.config.ts"
+            - "**/playwright.config.js"
+          exclude:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/build/**"
+
+  # Step 6: Create pull request
   - id: create-pr
     name: "Step 5: Create Pull Request"
     type: automatic
