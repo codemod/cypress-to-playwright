@@ -81,3 +81,17 @@ nodes:
           echo "Run these commands:"
           echo "  find . -name '*.cy.ts' -exec bash -c 'mv \"$0\" \"${0%.cy.ts}.spec.ts\"' {} \\;"
           echo "  find . -name '*.cy.tsx' -exec bash -c 'mv \"$0\" \"${0%.cy.tsx}.spec.tsx\"' {} \\;"
+
+  # Step 5: Create pull request
+  - id: create-pr
+    name: "Step 5: Create Pull Request"
+    type: automatic
+    steps:
+      - name: "Create pull request"
+        run: |
+          echo "Creating pull request"
+          npx -y codemodctl@latest git create-pr \
+            --commitMessage "[DRAFT] refactor: Run $CODEMOD_PROJECT_NAME" \
+            --title "[DRAFT] refactor: Migrate Cypress to Playwright" \
+            --body "This is a pull request for the $CODEMOD_PROJECT_NAME campaign. This PR migrates Cypress tests to Playwright, including test file transformations, config migration, and custom command detection." \
+            --push
