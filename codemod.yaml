@@ -1,7 +1,7 @@
 schema_version: "1.0"
 
 name: "@codemod/cypress-to-playwright"
-version: "0.2.5"
+version: "0.2.6"
 description: "Migrate Cypress end-to-end tests to Playwright. Transforms test structure, selectors, actions, assertions, and navigation commands."
 author: "Codemod Team"
 license: "MIT"
