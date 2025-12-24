@@ -94,6 +94,11 @@ nodes:
   - id: ai-todo-migration
     name: "Step 5: AI-Assisted TODO Migration"
     type: automatic
+    dependsOn:
+      - transform-test-files
+      - migrate-config
+      - detect-custom-commands
+      - rename-test-files
     steps:
       - name: "Migrate remaining Cypress code from TODO comments"
         if: params.autoAIReview
@@ -182,6 +187,8 @@ nodes:
   - id: create-pr
     name: "Step 6: Create Pull Request"
     type: automatic
+    dependsOn:
+      - ai-todo-migration
     steps:
       - name: "Create pull request"
         run: |
