@@ -2,17 +2,19 @@
 
 Migrate Cypress end-to-end tests to Playwright. This codemod transforms test structure, selectors, actions, assertions, and navigation commands.
 
-## Installation
+## Migration Approach
 
-```bash
-# Run from registry
-npx codemod run @codemod/cypress-to-playwright
+This codemod uses a **two-phase approach** to ensure reliable transformations:
 
-# Or run locally
-npx codemod workflow run -w workflow.yaml -t /path/to/your/cypress/tests
-```
+1. **AST-based transformations** (automatic, reliable): Handles standard Cypress patterns using traditional AST-based codemods. These transformations are deterministic and cover the majority of common patterns.
+
+2. **AI-assisted transformations** (optional): Handles tricky cases that require context-aware conversion. When enabled via Codemod Campaign, AI will automatically migrate complex patterns that were marked with TODO comments by the AST-based step.
 
 ## What Gets Transformed
+
+### AST-Based Transformations (Automatic)
+
+The following transformations are handled reliably by AST-based codemods:
 
 ### Test Structure
 
@@ -75,15 +77,41 @@ npx codemod workflow run -w workflow.yaml -t /path/to/your/cypress/tests
 | `cy.screenshot('name')` | `await page.screenshot({ path: 'name.png' })` |
 | `cy.viewport(w, h)` | `await page.setViewportSize({ width: w, height: h })` |
 
+### Configuration Migration
+
+The codemod also automatically migrates Cypress configuration files:
+- `cypress.config.ts` → `playwright.config.ts`
+- Converts Cypress-specific settings to equivalent Playwright configuration
+
+### Custom Command Detection
+
+The codemod scans for custom Cypress commands in support files and reports them for review. These are typically handled by the optional AI-assisted step when enabled.
+
+### AI-Assisted Transformations (Optional)
+
+When running via Codemod Campaign with `autoAIReview` enabled (default), the AI will automatically handle these tricky patterns that cannot be reliably transformed by AST-based codemods:
+
+1. **`.then()` patterns** (including `cy.visit().then()`):
+   - `cy.visit().then((window) => {...})` → Uses `page.evaluate()` to access window object
+   - `locator.then((el) => {...})` → Extracts logic and uses `locator.evaluate()` or locator methods
+   - Generic `.then()` callbacks → Converts to async/await patterns with proper Playwright APIs
+
+2. **Custom Cypress commands**:
+   - Custom commands like `cy.nextStep()`, `cy.prevStep()`, `cy.compareSnapshot()`, etc.
+   - AI analyzes the command definition and converts to appropriate Playwright helpers or `page.evaluate()`
+
+3. **Complex `.should()` callbacks**:
+   - Assertions with callback functions that contain custom logic
+   - Converts Cypress assertions within callbacks to Playwright matchers
+
+These patterns are initially marked with TODO comments by the AST-based codemod, then automatically resolved by AI when the optional AI step is enabled.
+
 ### Requires Manual Migration
 
-Some Cypress features require manual migration and will be marked with TODO comments:
+Some Cypress features may still require manual attention:
 
-- `cy.intercept()` → Use `page.route()` in Playwright
-- `cy.wait('@alias')` → Use `page.waitForResponse()` or similar
-- `cy.get().as('alias')` → Use const variables instead of aliases
-- `cy.get('@alias')` → Use the const variable directly
-- `cy.get().then()` → Use `locator.evaluate()` or similar
+- `cy.intercept()` → Use `page.route()` in Playwright (may be handled by AI if simple cases)
+- `cy.wait('@alias')` → Use `page.waitForResponse()` or similar (may be handled by AI)
 - `cy.task()` → Use Playwright fixtures or global setup
 
 ## Example
@@ -125,20 +153,3 @@ test.describe('Login', () => {
   });
 });
 ```
-
-## Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Run tests
-pnpm test
-
-# Validate the workflow
-npx codemod workflow validate -w workflow.yaml
-```
-
-## License
-
-MIT

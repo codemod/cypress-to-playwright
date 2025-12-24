@@ -92,7 +92,7 @@ nodes:
 
   # Step 5: AI-assisted migration of TODO comments
   - id: ai-todo-migration
-    name: "Step 6: AI-Assisted TODO Migration"
+    name: "Step 5: AI-Assisted TODO Migration"
     type: automatic
     steps:
       - name: "Migrate remaining Cypress code from TODO comments"
@@ -180,7 +180,7 @@ nodes:
 
   # Step 6: Create pull request
   - id: create-pr
-    name: "Step 5: Create Pull Request"
+    name: "Step 6: Create Pull Request"
     type: automatic
     steps:
       - name: "Create pull request"
