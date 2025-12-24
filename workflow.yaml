@@ -94,7 +94,7 @@ nodes:
   - id: ai-todo-migration
     name: "Step 5: AI-Assisted TODO Migration"
     type: automatic
-    dependsOn:
+    depends_on:
       - transform-test-files
       - migrate-config
       - detect-custom-commands
@@ -187,7 +187,7 @@ nodes:
   - id: create-pr
     name: "Step 6: Create Pull Request"
     type: automatic
-    dependsOn:
+    depends_on:
       - ai-todo-migration
     steps:
       - name: "Create pull request"
